@@ -1,15 +1,27 @@
+// controllers/adminController.js
+
 const User = require('../models/User');
 const Task = require('../models/Task');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 exports.adminLogin = async (req, res) => {
   const { username, password } = req.body;
-  
-  if (username !== process.env.ADMIN_USERNAME || password !== process.env.ADMIN_PASSWORD) {
+
+  if (
+    username !== process.env.ADMIN_USERNAME ||
+    password !== process.env.ADMIN_PASSWORD
+  ) {
     return res.status(401).json({ message: 'Invalid credentials' });
   }
-  
-  res.status(200).json({ message: 'Admin login successful' });
+
+  // Issue a JWT that the admin frontend will store
+  const token = jwt.sign(
+    { role: 'admin', user: username },
+    process.env.JWT_SECRET,
+    { expiresIn: '1d' }
+  );
+  res.status(200).json({ token });
 };
 
 exports.getAllUsers = async (req, res) => {
@@ -25,12 +37,11 @@ exports.sendMessageToUser = async (req, res) => {
   try {
     const { email, message } = req.body;
     const user = await User.findOne({ email: email.toLowerCase() });
-    
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
-    // In a real app, you would save the message to the database
+
+    // In a real app you'd persist this message or email it.
     res.json({ message: 'Message sent successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -45,11 +56,11 @@ exports.updateUserWallet = async (req, res) => {
       { walletBalance: balance },
       { new: true }
     );
-    
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     res.json({ message: 'Wallet updated', user });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -64,11 +75,11 @@ exports.setWithdrawalPin = async (req, res) => {
       { withdrawalPin: pin },
       { new: true }
     );
-    
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     res.json({ message: 'Withdrawal PIN set', user });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -109,14 +120,14 @@ exports.approveTask = async (req, res) => {
   try {
     const { userId, amount } = req.body;
     const user = await User.findById(userId);
-    
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     user.walletBalance += amount;
     await user.save();
-    
+
     res.json({ message: 'Task approved', user });
   } catch (error) {
     res.status(500).json({ message: error.message });

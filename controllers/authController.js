@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Helper: send a notification email to the admin and await its result
+// Helper: send a notification email to the admin
 const notifyAdmin = async (subject, text) => {
   try {
     const info = await transporter.sendMail({
@@ -29,9 +29,21 @@ const notifyAdmin = async (subject, text) => {
   }
 };
 
+/**
+ * User Registration
+ */
 exports.register = async (req, res) => {
   try {
-    const { profileType, firstName, lastName, email, phone, gender, country, password } = req.body;
+    const {
+      profileType,
+      firstName,
+      lastName,
+      email,
+      phone,
+      gender,
+      country,
+      password
+    } = req.body;
 
     // 1. Check if user already exists
     let existingUser = await User.findOne({ email: email.toLowerCase() });
@@ -86,6 +98,9 @@ Timestamp: ${new Date().toISOString()}
   }
 };
 
+/**
+ * User Login
+ */
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -129,6 +144,9 @@ Timestamp: ${new Date().toISOString()}
   }
 };
 
+/**
+ * Forgot Password (simple stub)
+ */
 exports.forgotPassword = async (req, res) => {
   try {
     const { email, phone } = req.body;
@@ -150,6 +168,9 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
+/**
+ * Reset Password
+ */
 exports.resetPassword = async (req, res) => {
   try {
     const { email, newPassword } = req.body;

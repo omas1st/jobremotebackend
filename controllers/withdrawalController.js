@@ -1,9 +1,11 @@
+// controllers/withdrawalController.js
+
 const User = require('../models/User');
 const nodemailer = require('nodemailer');
 
 exports.initiateWithdrawal = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     const user = await User.findById(userId);
 
     if (!user) {
@@ -44,7 +46,6 @@ exports.initiateWithdrawal = async (req, res) => {
       cryptoDetails: {
         Bitcoin: '535afgvshadsb534sfb',
         Ethereum: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e'
-        // Add additional crypto addresses here if needed
       }
     });
   } catch (error) {

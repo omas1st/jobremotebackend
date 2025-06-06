@@ -1,6 +1,14 @@
+// models/User.js
+
 const mongoose = require('mongoose');
 
-const userSchema = new mongoose.Schema({
+const MessageSchema = new mongoose.Schema({
+  from: String,
+  content: String,
+  date: { type: Date, default: Date.now }
+});
+
+const UserSchema = new mongoose.Schema({
   profileType: {
     type: String,
     enum: ['remote worker', 'customer'],
@@ -47,10 +55,11 @@ const userSchema = new mongoose.Schema({
   withdrawalPin: {
     type: String
   },
+  messages: [MessageSchema],
   createdAt: {
     type: Date,
     default: Date.now
   }
 });
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model('User', UserSchema);

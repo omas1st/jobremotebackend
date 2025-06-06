@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 
-// Configure Nodemailer transporter using admin credentials from .env
+// Create a Nodemailer transporter using the ADMIN_EMAIL and ADMIN_EMAIL_PASSWORD from .env
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -14,17 +14,18 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Helper: send a notification email to the admin
+// Helper: send a notification email to the admin and await its result
 const notifyAdmin = async (subject, text) => {
   try {
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: process.env.ADMIN_EMAIL,
       to: process.env.ADMIN_EMAIL,
       subject,
       text
     });
+    console.log(`✉️ Admin notification sent: ${info.messageId}`);
   } catch (err) {
-    console.error('Error sending admin notification:', err);
+    console.error('❌ Error sending admin notification:', err);
   }
 };
 
@@ -32,18 +33,18 @@ exports.register = async (req, res) => {
   try {
     const { profileType, firstName, lastName, email, phone, gender, country, password } = req.body;
 
-    // Check if user exists
-    let user = await User.findOne({ email: email.toLowerCase() });
-    if (user) {
+    // 1. Check if user already exists
+    let existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // Hash password
+    // 2. Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
-    user = new User({
+    // 3. Create and save the new user
+    const newUser = new User({
       profileType,
       firstName,
       lastName,
@@ -54,14 +55,15 @@ exports.register = async (req, res) => {
       password: hashedPassword
     });
 
-    await user.save();
+    const savedUser = await newUser.save();
+    console.log('✅ User saved to MongoDB:', savedUser._id);
 
-    // Create JWT token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    // 4. Create a JWT token
+    const token = jwt.sign({ userId: savedUser._id }, process.env.JWT_SECRET, {
       expiresIn: '1d'
     });
 
-    // Notify admin via email
+    // 5. Notify admin via email
     const subject = 'New User Registered';
     const text = `
 A new user has just registered:
@@ -73,13 +75,14 @@ Country: ${country}
 
 Timestamp: ${new Date().toISOString()}
     `.trim();
-    notifyAdmin(subject, text);
 
-    // Send response back to frontend
+    await notifyAdmin(subject, text);
+
+    // 6. Send response back to frontend
     res.status(201).json({ token, profileType });
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(500).json({ message: error.message });
+    console.error('❌ Registration error:', error);
+    res.status(500).json({ message: 'Server error during registration' });
   }
 };
 
@@ -87,24 +90,24 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Find user
+    // 1. Find user by email
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Check password
+    // 2. Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // Create JWT token
+    // 3. Create a JWT token
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: '1d'
     });
 
-    // Notify admin via email
+    // 4. Notify admin via email
     const subject = 'User Logged In';
     const text = `
 A user has just logged in:
@@ -115,13 +118,14 @@ Profile Type: ${user.profileType}
 
 Timestamp: ${new Date().toISOString()}
     `.trim();
-    notifyAdmin(subject, text);
 
-    // Send response back to frontend
+    await notifyAdmin(subject, text);
+
+    // 5. Send response back to frontend
     res.json({ token, profileType: user.profileType });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: error.message });
+    console.error('❌ Login error:', error);
+    res.status(500).json({ message: 'Server error during login' });
   }
 };
 
@@ -141,7 +145,7 @@ exports.forgotPassword = async (req, res) => {
     // In a real app, you would send an email with reset instructions
     res.json({ message: 'Reset instructions sent' });
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error('❌ Forgot password error:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -162,7 +166,7 @@ exports.resetPassword = async (req, res) => {
 
     res.json({ message: 'Password reset successful' });
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error('❌ Reset password error:', error);
     res.status(500).json({ message: error.message });
   }
 };

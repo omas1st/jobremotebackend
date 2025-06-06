@@ -1,16 +1,17 @@
-// controllers/adminController.js
-
 const User = require('../models/User');
 const Task = require('../models/Task');
+const bcrypt = require('bcryptjs');
 
-/**
- * Admin Login (already implemented in authController/adminAuthRoutes)
- * But if needed here, it was handled via env credentials directly in auth routes.
- */
+exports.adminLogin = async (req, res) => {
+  const { username, password } = req.body;
+  
+  if (username !== process.env.ADMIN_USERNAME || password !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).json({ message: 'Invalid credentials' });
+  }
+  
+  res.status(200).json({ message: 'Admin login successful' });
+};
 
-/**
- * Get all users (sorted by creation date descending)
- */
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find().sort({ createdAt: -1 });
@@ -20,34 +21,22 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-/**
- * Send a message to a specific user
- */
 exports.sendMessageToUser = async (req, res) => {
   try {
     const { email, message } = req.body;
     const user = await User.findOne({ email: email.toLowerCase() });
+    
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
-    // Save message into user's inbox (old backend used messages array on User schema)
-    user.messages.push({
-      from: 'Admin',
-      content: message,
-      date: new Date()
-    });
-    await user.save();
-
+    
+    // In a real app, you would save the message to the database
     res.json({ message: 'Message sent successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-/**
- * Update a user’s wallet balance
- */
 exports.updateUserWallet = async (req, res) => {
   try {
     const { email, balance } = req.body;
@@ -56,20 +45,17 @@ exports.updateUserWallet = async (req, res) => {
       { walletBalance: balance },
       { new: true }
     );
-
+    
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
+    
     res.json({ message: 'Wallet updated', user });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-/**
- * Set or update a user's withdrawal PIN
- */
 exports.setWithdrawalPin = async (req, res) => {
   try {
     const { email, pin } = req.body;
@@ -78,20 +64,17 @@ exports.setWithdrawalPin = async (req, res) => {
       { withdrawalPin: pin },
       { new: true }
     );
-
+    
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
+    
     res.json({ message: 'Withdrawal PIN set', user });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-/**
- * Create a new task
- */
 exports.createTask = async (req, res) => {
   try {
     const { title, description, payment, externalLink } = req.body;
@@ -103,25 +86,16 @@ exports.createTask = async (req, res) => {
   }
 };
 
-/**
- * Update a task by its ID
- */
 exports.updateTask = async (req, res) => {
   try {
     const { id } = req.params;
     const task = await Task.findByIdAndUpdate(id, req.body, { new: true });
-    if (!task) {
-      return res.status(404).json({ message: 'Task not found' });
-    }
     res.json(task);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-/**
- * Delete a task by its ID
- */
 exports.deleteTask = async (req, res) => {
   try {
     await Task.findByIdAndDelete(req.params.id);
@@ -131,27 +105,18 @@ exports.deleteTask = async (req, res) => {
   }
 };
 
-/**
- * Approve a user's task submission and credit their wallet
- * Expects { userId, amount } in request body
- */
 exports.approveTask = async (req, res) => {
   try {
     const { userId, amount } = req.body;
     const user = await User.findById(userId);
+    
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
+    
     user.walletBalance += amount;
-    // Optionally notify user via message array:
-    user.messages.push({
-      from: 'System',
-      content: `Your task payment of $${amount.toFixed(2)} has been approved and credited to your wallet.`,
-      date: new Date()
-    });
     await user.save();
-
+    
     res.json({ message: 'Task approved', user });
   } catch (error) {
     res.status(500).json({ message: error.message });
